@@ -1,0 +1,75 @@
+name: Build and Publish to PyPI
+
+on:
+#   schedule:
+#     - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  build_and_publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Get latest version from PyPI
+        id: get_pypi_version
+        run: |
+          PACKAGE_NAME="kurirogram"
+          VERSION=$(curl -s https://pypi.org/pypi/$PACKAGE_NAME/json | jq -r '.info.version')
+          echo "pypi_version=${VERSION}" >> $GITHUB_ENV
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: KurimuzonAkuma/pyrogram
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Get latest tag from GitHub
+        id: get_github_tag
+        run: |
+          git fetch --tags
+          github_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+          echo "github_tag=${github_tag}" >> $GITHUB_ENV
+
+      - name: Compare tags and decide if update is needed
+        id: check_update
+        run: |
+          # Remove 'v' prefix from github_tag if present
+          github_tag="${github_tag#v}"
+          
+          # Check if there's a new tag compared to the PyPI version
+          if [ "$(printf '%s\n' "$github_tag" "$pypi_version" | sort -V | tail -n 1)" != "$pypi_version" ]; then
+            echo "new_tag_found=true" >> $GITHUB_ENV
+          else
+            echo "new_tag_found=false" >> $GITHUB_ENV
+          fi
+
+      - name: Set up Python
+        if: ${{ env.new_tag_found == 'true' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install build dependencies
+        if: ${{ env.new_tag_found == 'true' }}
+        run: |
+          pip install build
+
+      - name: Build the package
+        if: ${{ env.new_tag_found == 'true' }}
+        run: |
+          python -m build
+          mv dist/pyrogram-*.tar.gz dist/kurirogram-*.tar.gz
+          mv dist/pyrogram-*.whl dist/kurirogram-*.whl
+
+      - name: Publish to PyPI
+        if: ${{ env.new_tag_found == 'true' }}
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          pip install twine
+          twine upload dist/*
