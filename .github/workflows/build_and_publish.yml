@@ -44,6 +44,7 @@ jobs:
           wget $DOWNLOAD_URL -O latest_release.tar.gz
           mkdir -p source
           tar -xzvf latest_release.tar.gz -C source --strip-components=1
+          sed -i 's/\(name=\)"Pyrogram"/\1"kurirogram"/' source/setup.py
 
       - name: Set up Python
         if: ${{ env.new_tag_found == 'true' }}
@@ -61,8 +62,6 @@ jobs:
         working-directory: source
         run: |
           python -m build
-          mv dist/pyrogram-*.tar.gz dist/kurirogram-*.tar.gz
-          mv dist/Pyrogram-*.whl dist/Kurirogram-*.whl
 
       - name: Publish to PyPI
         if: ${{ env.new_tag_found == 'true' }}
