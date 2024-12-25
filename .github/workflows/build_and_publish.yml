@@ -44,7 +44,7 @@ jobs:
           wget $DOWNLOAD_URL -O latest_release.tar.gz
           mkdir -p source
           tar -xzvf latest_release.tar.gz -C source --strip-components=1
-          sed -i 's/\(name=\)"Pyrogram"/\1"kurirogram"/' source/setup.py
+          sed -i 's/\(name=\)"Kurigram"/\1"kurirogram"/' source/setup.py
 
       - name: Set up Python
         if: ${{ env.new_tag_found == 'true' }}
